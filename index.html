@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Movie</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .game-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .movie-image {
+            width: 100%;
+            height: 400px;
+            background-color: #ddd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .movie-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .guess-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .guess-box {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 18px;
+            background-color: #f8f8f8;
+        }
+        
+        .guess-box.active {
+            border-color: #007bff;
+            background-color: #e6f2ff;
+        }
+        
+        .guess-box.correct {
+            border-color: #28a745;
+            background-color: #d4edda;
+            color: #28a745;
+        }
+        
+        .guess-box.incorrect {
+            border-color: #dc3545;
+            background-color: #f8d7da;
+            color: #dc3545;
+        }
+        
+        .input-area {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ccc;
+            border-radius: 5px 0 0 5px;
+            outline: none;
+        }
+        
+        input[type="text"]:focus {
+            border-color: #007bff;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 0 5px 5px 0;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        .message {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+            height: 30px;
+        }
+        
+        .message.correct {
+            color: #28a745;
+        }
+        
+        .message.fail {
+            color: #dc3545;
+        }
+        
+        .game-over {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .play-again {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .play-again:hover {
+            background-color: #218838;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Guess the Movie</h1>
+    
+    <div class="game-container">
+        <div class="movie-image">
+            <!-- This is where you'll add your movie screenshot -->
+            <img id="movieImage" src="/api/placeholder/800/400" alt="Movie screenshot">
+        </div>
+        
+        <div class="guess-indicators">
+            <div class="guess-box active">1</div>
+            <div class="guess-box">2</div>
+            <div class="guess-box">3</div>
+            <div class="guess-box">4</div>
+            <div class="guess-box">5</div>
+            <div class="guess-box">6</div>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="movieGuess" placeholder="Enter your guess..." autofocus>
+            <button id="submitGuess">Guess</button>
+        </div>
+        
+        <div id="message" class="message"></div>
+        
+        <div id="gameOver" class="game-over hidden">
+            <button id="playAgain" class="play-again">Play Again</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Game configuration
+            // Replace this with your actual movie title
+            const correctMovie = "The Shawshank Redemption";
+            let currentGuess = 1;
+            let gameEnded = false;
+            
+            // DOM elements
+            const guessBoxes = document.querySelectorAll('.guess-box');
+            const submitButton = document.getElementById('submitGuess');
+            const guessInput = document.getElementById('movieGuess');
+            const messageElement = document.getElementById('message');
+            const gameOverElement = document.getElementById('gameOver');
+            const playAgainButton = document.getElementById('playAgain');
+            
+            // Initialize the game
+            guessInput.focus();
+            
+            // Handle guess submission
+            submitButton.addEventListener('click', checkGuess);
+            guessInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    checkGuess();
+                }
+            });
+            
+            // Reset game when Play Again is clicked
+            playAgainButton.addEventListener('click', resetGame);
+            
+            function checkGuess() {
+                if (gameEnded) return;
+                
+                const userGuess = guessInput.value.trim();
+                
+                if (userGuess === '') return;
+                
+                // Check if the guess is correct (case insensitive)
+                if (userGuess.toLowerCase() === correctMovie.toLowerCase()) {
+                    // Correct guess
+                    guessBoxes[currentGuess - 1].classList.remove('active');
+                    guessBoxes[currentGuess - 1].classList.add('correct');
+                    messageElement.textContent = 'CORRECT!';
+                    messageElement.classList.add('correct');
+                    endGame(true);
+                } else {
+                    // Incorrect guess
+                    guessBoxes[currentGuess - 1].classList.remove('active');
+                    guessBoxes[currentGuess - 1].classList.add('incorrect');
+                    
+                    currentGuess++;
+                    
+                    if (currentGuess <= 6) {
+                        // Move to next guess
+                        guessBoxes[currentGuess - 1].classList.add('active');
+                    } else {
+                        // Failed after 6 guesses
+                        messageElement.textContent = 'FAIL!';
+                        messageElement.classList.add('fail');
+                        endGame(false);
+                    }
+                }
+                
+                // Clear input for next guess
+                guessInput.value = '';
+                guessInput.focus();
+            }
+            
+            function endGame(won) {
+                gameEnded = true;
+                gameOverElement.classList.remove('hidden');
+                
+                // Disable input
+                guessInput.disabled = true;
+                submitButton.disabled = true;
+            }
+            
+            function resetGame() {
+                // Reset game state
+                currentGuess = 1;
+                gameEnded = false;
+                
+                // Reset UI
+                guessBoxes.forEach((box, index) => {
+                    box.className = 'guess-box';
+                    if (index === 0) box.classList.add('active');
+                });
+                
+                messageElement.textContent = '';
+                messageElement.className = 'message';
+                gameOverElement.classList.add('hidden');
+                
+                // Enable input
+                guessInput.disabled = false;
+                submitButton.disabled = false;
+                guessInput.value = '';
+                guessInput.focus();
+            }
+        });
+    </script>
+</body>
+</html>
