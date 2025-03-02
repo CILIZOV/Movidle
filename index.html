@@ -63,6 +63,8 @@
             font-weight: bold;
             font-size: 18px;
             background-color: #f8f8f8;
+            cursor: pointer;
+            transition: all 0.2s;
         }
         
         .guess-box.active {
@@ -80,6 +82,12 @@
             border-color: #dc3545;
             background-color: #f8d7da;
             color: #dc3545;
+            cursor: pointer;
+        }
+        
+        .guess-box.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         .input-area {
@@ -163,17 +171,17 @@
     
     <div class="game-container">
         <div class="movie-image">
-            <!-- This is where you'll add your movie screenshot -->
+            <!-- This is where your movie screenshots will be displayed -->
             <img id="movieImage" src="/api/placeholder/800/400" alt="Movie screenshot">
         </div>
         
         <div class="guess-indicators">
-            <div class="guess-box active">1</div>
-            <div class="guess-box">2</div>
-            <div class="guess-box">3</div>
-            <div class="guess-box">4</div>
-            <div class="guess-box">5</div>
-            <div class="guess-box">6</div>
+            <div class="guess-box active" data-index="1">1</div>
+            <div class="guess-box locked" data-index="2">2</div>
+            <div class="guess-box locked" data-index="3">3</div>
+            <div class="guess-box locked" data-index="4">4</div>
+            <div class="guess-box locked" data-index="5">5</div>
+            <div class="guess-box locked" data-index="6">6</div>
         </div>
         
         <div class="input-area">
@@ -192,9 +200,21 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Game configuration
             // Replace this with your actual movie title
-            const correctMovie = "The Shawshank Redemption";
+            const correctMovie = "Gangs of New York";
+            
+            // Replace these URLs with your actual screenshot images
+            const screenshots = [
+                "/api/placeholder/800/400?text=Screenshot+1",  // Screenshot 1
+                "/api/placeholder/800/400?text=Screenshot+2",  // Screenshot 2
+                "/api/placeholder/800/400?text=Screenshot+3",  // Screenshot 3
+                "/api/placeholder/800/400?text=Screenshot+4",  // Screenshot 4
+                "/api/placeholder/800/400?text=Screenshot+5",  // Screenshot 5
+                "/api/placeholder/800/400?text=Screenshot+6"   // Screenshot 6
+            ];
+            
             let currentGuess = 1;
             let gameEnded = false;
+            let currentlyViewingIndex = 0;
             
             // DOM elements
             const guessBoxes = document.querySelectorAll('.guess-box');
@@ -203,9 +223,30 @@
             const messageElement = document.getElementById('message');
             const gameOverElement = document.getElementById('gameOver');
             const playAgainButton = document.getElementById('playAgain');
+            const movieImage = document.getElementById('movieImage');
             
             // Initialize the game
+            movieImage.src = screenshots[0]; // Show the first screenshot
             guessInput.focus();
+            
+            // Set up click events for guess boxes
+            guessBoxes.forEach(box => {
+                box.addEventListener('click', () => {
+                    const index = parseInt(box.getAttribute('data-index')) - 1;
+                    
+                    // Only allow viewing screenshots for boxes that have been attempted
+                    if (!box.classList.contains('locked')) {
+                        movieImage.src = screenshots[index];
+                        currentlyViewingIndex = index;
+                        
+                        // Update active state for viewing
+                        document.querySelectorAll('.guess-box').forEach(b => {
+                            b.classList.remove('viewing');
+                        });
+                        box.classList.add('viewing');
+                    }
+                });
+            });
             
             // Handle guess submission
             submitButton.addEventListener('click', checkGuess);
@@ -241,8 +282,11 @@
                     currentGuess++;
                     
                     if (currentGuess <= 6) {
-                        // Move to next guess
+                        // Move to next guess and show next screenshot
                         guessBoxes[currentGuess - 1].classList.add('active');
+                        guessBoxes[currentGuess - 1].classList.remove('locked');
+                        movieImage.src = screenshots[currentGuess - 1];
+                        currentlyViewingIndex = currentGuess - 1;
                     } else {
                         // Failed after 6 guesses
                         messageElement.textContent = 'FAIL!';
@@ -260,6 +304,11 @@
                 gameEnded = true;
                 gameOverElement.classList.remove('hidden');
                 
+                // Unlock all screenshot boxes if game is over
+                guessBoxes.forEach((box, index) => {
+                    box.classList.remove('locked');
+                });
+                
                 // Disable input
                 guessInput.disabled = true;
                 submitButton.disabled = true;
@@ -269,12 +318,20 @@
                 // Reset game state
                 currentGuess = 1;
                 gameEnded = false;
+                currentlyViewingIndex = 0;
                 
                 // Reset UI
                 guessBoxes.forEach((box, index) => {
                     box.className = 'guess-box';
-                    if (index === 0) box.classList.add('active');
+                    if (index === 0) {
+                        box.classList.add('active');
+                    } else {
+                        box.classList.add('locked');
+                    }
                 });
+                
+                // Reset to first screenshot
+                movieImage.src = screenshots[0];
                 
                 messageElement.textContent = '';
                 messageElement.className = 'message';
